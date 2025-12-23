@@ -1,0 +1,76 @@
+# =====================================
+# Smart Document Organizer - .gitignore
+# =====================================
+
+# ----- Python / Backend -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# ----- Environment Variables (IMPORTANT!) -----
+.env
+.env.local
+.env.*.local
+*.env
+
+# ----- Database -----
+*.db
+*.sqlite
+*.sqlite3
+app.db
+
+# ----- Node / Frontend -----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ----- Build outputs -----
+frontend/build/
+frontend/dist/
+.next/
+out/
+
+# ----- IDE / Editor -----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ----- Logs -----
+*.log
+logs/
+
+# ----- ML Models (optional - they're large) -----
+# Uncomment if you don't want to push model files
+# *.pt
+# *.pth
+# *.bin
+
+# ----- OS files -----
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ----- Test / Coverage -----
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
