@@ -1,5 +1,5 @@
-// API Configuration
-const API_BASE = 'http://localhost:8000';
+// API Configuration - Production Ready
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 // API Service - All backend communication
 const api = {
@@ -41,7 +41,7 @@ const api = {
     },
 
     getDocuments: async (category, token) => {
-        const res = await fetch(`${API_BASE}/documents?category=${category}`, {
+        const res = await fetch(`${API_BASE}/documents?category=${encodeURIComponent(category)}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         return res.json();
@@ -65,7 +65,7 @@ const api = {
     },
 
     deleteDocument: async (documentId, token) => {
-        const res = await fetch(`${API_BASE}/documents/${documentId}`, {
+        const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(documentId)}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -84,8 +84,53 @@ const api = {
 
         // Return blob for download
         return res.blob();
+    },
+
+    // Health check endpoint
+    healthCheck: async () => {
+        try {
+            const res = await fetch(`${API_BASE}/health`);
+            return res.json();
+        } catch {
+            return { status: 'unreachable' };
+        }
     }
 };
+
+// ========================================
+// Session Persistence Helpers
+// ========================================
+const SESSION_KEY = 'sdo_session';
+
+export const saveSession = (token, username) => {
+    try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ token, username }));
+    } catch (e) {
+        console.warn('Failed to save session:', e);
+    }
+};
+
+export const loadSession = () => {
+    try {
+        const data = localStorage.getItem(SESSION_KEY);
+        return data ? JSON.parse(data) : null;
+    } catch (e) {
+        console.warn('Failed to load session:', e);
+        return null;
+    }
+};
+
+export const clearSession = () => {
+    try {
+        localStorage.removeItem(SESSION_KEY);
+    } catch (e) {
+        console.warn('Failed to clear session:', e);
+    }
+};
+
+// ========================================
+// UI Helper Data
+// ========================================
 
 // Inspirational quotes for document organization
 export const quotes = [

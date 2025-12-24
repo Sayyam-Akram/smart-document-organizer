@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Upload, FolderOpen, FileText, LogOut, Search, CheckCircle, ArrowLeft, Sparkles, MessageSquare, X, Loader2, Trash2, Download } from 'lucide-react';
+import { AlertCircle, Upload, FolderOpen, FileText, LogOut, Search, CheckCircle, Sparkles, MessageSquare, X, Loader2, Trash2, Download, Archive } from 'lucide-react';
 import api, { quotes, categoryColors } from '../services/api';
 import { ThemeToggle, Logo } from '../components/shared';
 import { useToast } from '../components/Toast';
@@ -50,19 +50,13 @@ const DeleteModal = ({ isOpen, doc, onConfirm, onCancel }) => {
                     </div>
                 </div>
                 <p className="text-brown-600 dark:text-cream-200 mb-6">
-                    This action cannot be undone. The document and its content will be permanently deleted.
+                    This action cannot be undone. The document will be permanently deleted.
                 </p>
                 <div className="flex gap-3">
-                    <button
-                        onClick={onCancel}
-                        className="flex-1 py-3 px-4 border-2 border-cream-300 dark:border-dark-400 text-brown-700 dark:text-cream-100 rounded-xl font-semibold hover:bg-cream-100 dark:hover:bg-dark-400 transition-colors"
-                    >
+                    <button onClick={onCancel} className="flex-1 py-3 px-4 border-2 border-cream-300 dark:border-dark-400 text-brown-700 dark:text-cream-100 rounded-xl font-semibold hover:bg-cream-100 dark:hover:bg-dark-400 transition-colors">
                         Cancel
                     </button>
-                    <button
-                        onClick={onConfirm}
-                        className="flex-1 py-3 px-4 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
-                    >
+                    <button onClick={onConfirm} className="flex-1 py-3 px-4 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors">
                         Delete
                     </button>
                 </div>
@@ -104,8 +98,7 @@ const SummaryModal = ({ isOpen, onClose, summary, loading, error, filename }) =>
                     {error && (
                         <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400">
                             <div className="flex items-center gap-2 font-semibold mb-2">
-                                <AlertCircle className="w-5 h-5" />
-                                Error
+                                <AlertCircle className="w-5 h-5" />Error
                             </div>
                             <p className="text-sm">{error}</p>
                         </div>
@@ -115,8 +108,7 @@ const SummaryModal = ({ isOpen, onClose, summary, loading, error, filename }) =>
                         <div className="space-y-6">
                             <div>
                                 <h4 className="font-semibold text-brown-700 dark:text-cream-100 mb-2 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-golden-500" />
-                                    Summary
+                                    <Sparkles className="w-4 h-4 text-golden-500" />Summary
                                 </h4>
                                 <p className="text-brown-600 dark:text-cream-200 bg-cream-100 dark:bg-dark-400 p-4 rounded-xl border border-cream-300 dark:border-dark-500">
                                     {summary.summary}
@@ -218,7 +210,6 @@ const OrganizedPage = ({ token, username, onNavigate, onLogout }) => {
 
     const handleDelete = async () => {
         if (!deleteConfirm.doc) return;
-
         try {
             const result = await api.deleteDocument(deleteConfirm.doc.id, token);
             if (result.message) {
@@ -268,51 +259,72 @@ const OrganizedPage = ({ token, username, onNavigate, onLogout }) => {
 
     return (
         <div className="min-h-screen paper-texture">
-            <nav className="bg-cream-50 dark:bg-dark-300 border-b border-cream-300 dark:border-dark-400 card-shadow">
+            {/* Navigation Bar */}
+            <nav className="bg-cream-50/95 dark:bg-dark-300/95 backdrop-blur-sm border-b border-cream-300 dark:border-dark-400 sticky top-0 z-40">
                 <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <Logo size="small" />
+                    {/* Clickable Logo - navigates to upload page */}
+                    <Logo size="small" onClick={() => onNavigate('upload')} />
+
                     <div className="flex items-center gap-4">
-                        <span className="text-brown-600 dark:text-cream-300">
+                        <span className="text-brown-600 dark:text-cream-300 hidden sm:block">
                             Welcome, <strong className="text-brown-700 dark:text-cream-100">{username}</strong>
                         </span>
                         <ThemeToggle />
                         <button onClick={onLogout} className="flex items-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
                             <LogOut className="w-4 h-4" />
-                            Logout
+                            <span className="hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 </div>
             </nav>
 
             <div className="max-w-6xl mx-auto p-8">
-                <div className="mb-4">
-                    <button onClick={() => onNavigate('upload')} className="flex items-center gap-2 px-4 py-2 text-brown-600 dark:text-cream-200 hover:bg-cream-200 dark:hover:bg-dark-400 rounded-lg transition-all">
-                        <ArrowLeft className="w-4 h-4" />
-                        Upload New Documents
-                    </button>
-                </div>
-
-                <div className="flex items-center justify-between mb-8">
+                {/* Header with Action Buttons - No back button needed */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
                     <div>
                         <h2 className="text-3xl font-bold text-brown-700 dark:text-cream-100">Your Document Collection</h2>
                         <p className="text-brown-500 dark:text-cream-300 mt-1">
                             {totalDocs > 0 ? `${totalDocs} document${totalDocs !== 1 ? 's' : ''} organized across ${Object.keys(categories).length} categories` : 'Upload documents to get started'}
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+
+                    {/* Aesthetic Action Buttons - Premium Design */}
+                    <div className="flex flex-wrap items-center gap-4">
                         {totalDocs > 0 && (
                             <button
                                 onClick={handleDownloadZip}
                                 disabled={downloading}
-                                className="flex items-center gap-2 px-5 py-3 bg-emerald-600 dark:bg-emerald-700 text-white rounded-xl font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-all shadow-lg btn-glow disabled:opacity-50"
+                                className="group relative flex items-center gap-3 px-6 py-3.5 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 text-white rounded-2xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
                             >
-                                {downloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-                                {downloading ? 'Preparing...' : 'Download All'}
+                                {/* Shine effect */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+
+                                <div className="relative flex items-center gap-3">
+                                    {downloading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <div className="p-1.5 bg-white/20 rounded-lg">
+                                            <Archive className="w-4 h-4" />
+                                        </div>
+                                    )}
+                                    <span>{downloading ? 'Preparing...' : 'Download All'}</span>
+                                </div>
                             </button>
                         )}
-                        <button onClick={() => onNavigate('upload')} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-brown-600 to-brown-700 dark:from-golden-600 dark:to-golden-700 text-cream-50 rounded-xl font-semibold hover:from-brown-700 hover:to-brown-800 dark:hover:from-golden-700 dark:hover:to-golden-800 transition-all shadow-lg btn-glow">
-                            <Upload className="w-5 h-5" />
-                            Upload More
+
+                        <button
+                            onClick={() => onNavigate('upload')}
+                            className="group relative flex items-center gap-3 px-6 py-3.5 bg-gradient-to-br from-brown-600 via-brown-700 to-brown-800 dark:from-golden-500 dark:via-golden-600 dark:to-amber-600 text-white rounded-2xl font-semibold transition-all duration-300 shadow-lg shadow-brown-500/25 dark:shadow-golden-500/25 hover:shadow-xl hover:shadow-brown-500/40 dark:hover:shadow-golden-500/40 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
+                        >
+                            {/* Shine effect */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+
+                            <div className="relative flex items-center gap-3">
+                                <div className="p-1.5 bg-white/20 rounded-lg">
+                                    <Upload className="w-4 h-4" />
+                                </div>
+                                <span>Upload More</span>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -400,7 +412,7 @@ const OrganizedPage = ({ token, username, onNavigate, onLogout }) => {
                                                         className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-lg font-medium hover:from-violet-600 hover:to-violet-700 transition-all shadow-md btn-glow"
                                                     >
                                                         <MessageSquare className="w-4 h-4" />
-                                                        AI Summary
+                                                        <span className="hidden sm:inline">AI Summary</span>
                                                     </button>
                                                     <button
                                                         onClick={() => setDeleteConfirm({ isOpen: true, doc })}

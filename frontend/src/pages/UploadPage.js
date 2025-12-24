@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Upload, FolderOpen, FileText, LogOut, Search, CheckCircle, XCircle, ArrowLeft, Sparkles } from 'lucide-react';
+import { AlertCircle, Upload, FolderOpen, FileText, LogOut, Search, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import api, { getConfidenceColor } from '../services/api';
 import { ThemeToggle, Logo } from '../components/shared';
 import { useToast } from '../components/Toast';
@@ -144,43 +144,34 @@ const UploadPage = ({ token, username, onNavigate, onLogout }) => {
         <div className="min-h-screen paper-texture">
             {uploading && <ProcessingIndicator filesCount={files.length} />}
 
-            <nav className="bg-cream-50 dark:bg-dark-300 border-b border-cream-300 dark:border-dark-400 card-shadow animate-slideUp">
+            {/* Navigation Bar - Logo is clickable but stays on upload page */}
+            <nav className="bg-cream-50/95 dark:bg-dark-300/95 backdrop-blur-sm border-b border-cream-300 dark:border-dark-400 sticky top-0 z-40">
                 <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <Logo size="small" />
+                    <Logo size="small" onClick={() => onNavigate('upload')} />
                     <div className="flex items-center gap-4">
-                        <span className="text-brown-600 dark:text-cream-300">
+                        <span className="text-brown-600 dark:text-cream-300 hidden sm:block">
                             Welcome, <strong className="text-brown-700 dark:text-cream-100">{username}</strong>
                         </span>
-                        <ThemeToggle />
                         <button
                             onClick={() => onNavigate('organized')}
-                            className="px-4 py-2 text-brown-600 dark:text-cream-200 hover:bg-cream-200 dark:hover:bg-dark-400 rounded-lg transition-all btn-glow"
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
                         >
-                            View Documents
+                            <FolderOpen className="w-4 h-4" />
+                            <span className="hidden sm:inline">View Documents</span>
                         </button>
+                        <ThemeToggle />
                         <button
                             onClick={onLogout}
                             className="flex items-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                         >
                             <LogOut className="w-4 h-4" />
-                            Logout
+                            <span className="hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 </div>
             </nav>
 
             <div className="max-w-4xl mx-auto p-8">
-                {/* Back button to organized view */}
-                <div className="mb-4 animate-fadeIn">
-                    <button
-                        onClick={() => onNavigate('organized')}
-                        className="flex items-center gap-2 px-4 py-2 text-brown-600 dark:text-cream-200 hover:bg-cream-200 dark:hover:bg-dark-400 rounded-lg transition-all hover:translate-x-[-2px]"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        View Organized Documents
-                    </button>
-                </div>
-
                 <div className="bg-cream-50 dark:bg-dark-300 rounded-2xl card-shadow-lg p-8 border border-cream-300 dark:border-dark-400 animate-slideUp">
                     <div className="text-center mb-8">
                         <h2 className="text-3xl font-bold text-brown-700 dark:text-cream-100">Upload Documents</h2>

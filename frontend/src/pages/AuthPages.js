@@ -208,7 +208,7 @@ const AuthPage = ({ onNavigate, onLogin }) => {
 
                     {/* Email - Only for Signup */}
                     {!isLogin && (
-                        <div className="animate-slideUp stagger-2" style={{ opacity: 0, animationFillMode: 'forwards' }}>
+                        <div>
                             <label className="flex items-center text-sm font-semibold mb-2 text-brown-700 dark:text-cream-200">
                                 <Mail className="w-4 h-4 mr-2 text-golden-600 dark:text-golden-400" />
                                 Email

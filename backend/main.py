@@ -1,4 +1,4 @@
-"""FastAPI Backend Application - Smart Document Organizer"""
+"""FastAPI Backend Application - Smart Document Organizer (Production Ready)"""
 from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,6 +7,8 @@ from datetime import datetime
 from pydantic import BaseModel
 import uuid
 import os
+import re
+import logging
 from dotenv import load_dotenv
 
 # Rate Limiting
@@ -17,6 +19,13 @@ from slowapi.errors import RateLimitExceeded
 # Load environment variables first
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 from auth import hash_password, verify_password, create_token, verify_token
 from classifier import DocumentClassifier
 from pdf_utils import extract_text_from_pdf
@@ -25,6 +34,13 @@ from models import SignupRequest, LoginRequest, User, Document
 from llm_service import get_llm_service
 import database as db
 
+# ========================================
+# Configuration from Environment
+# ========================================
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
 # Rate limiter - uses IP address for identification
 limiter = Limiter(key_func=get_remote_address)
 
@@ -32,17 +48,17 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title="Smart Document Organizer",
     description="AI-powered document classification and summarization",
-    version="2.1.0"
+    version="2.2.0"
 )
 
 # Add rate limiter to app state and exception handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS - Allow frontend
+# CORS - Configurable via environment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,7 +71,9 @@ db.init_db()
 classifier = DocumentClassifier()
 
 
+# ========================================
 # Request/Response Models
+# ========================================
 class SummarizeRequest(BaseModel):
     document_id: str
 
@@ -68,52 +86,75 @@ class SummarizeResponse(BaseModel):
     error: Optional[str] = None
 
 
-# Helper function
+# ========================================
+# Helper Functions
+# ========================================
 def get_current_user(authorization: str = Header(None)) -> str:
     """Get username from token"""
     if not authorization or not authorization.startswith('Bearer '):
-        raise HTTPException(status_code=401, detail="No token")
+        raise HTTPException(status_code=401, detail="No token provided")
     
     token = authorization.split(' ')[1]
     username = verify_token(token)
     
     if not username or not db.user_exists(username):
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
     
     return username
 
 
-# Routes
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent path traversal and injection"""
+    # Remove path separators and null bytes
+    filename = os.path.basename(filename)
+    filename = filename.replace('\x00', '')
+    # Keep only safe characters
+    filename = re.sub(r'[^\w\s\-\.]', '_', filename)
+    return filename[:255]  # Limit length
+
+
+# ========================================
+# Routes - Authentication
+# ========================================
 @app.post("/signup")
-async def signup(request: SignupRequest):
+@limiter.limit("5/minute")  # Prevent brute force registration
+async def signup(request: Request, body: SignupRequest):
     """Create new account"""
-    if db.user_exists(request.username):
+    if db.user_exists(body.username):
         raise HTTPException(status_code=400, detail="Username already exists")
     
-    if db.email_exists(request.email):
+    if db.email_exists(body.email):
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    password_hash = hash_password(request.password)
-    db.create_user(request.username, request.email, password_hash)
+    password_hash = hash_password(body.password)
+    db.create_user(body.username, body.email, password_hash)
     
-    return {"message": "Account created successfully", "username": request.username}
+    logger.info(f"New user registered: {body.username}")
+    return {"message": "Account created successfully", "username": body.username}
 
 
 @app.post("/login")
-async def login(request: LoginRequest):
+@limiter.limit("10/minute")  # Prevent brute force login
+async def login(request: Request, body: LoginRequest):
     """Login user"""
-    user = db.get_user(request.username)
+    user = db.get_user(body.username)
     
     if not user:
+        logger.warning(f"Login attempt for non-existent user: {body.username}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    if not verify_password(request.password, user["password_hash"]):
+    if not verify_password(body.password, user["password_hash"]):
+        logger.warning(f"Failed login attempt for user: {body.username}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    token = create_token(request.username)
-    return {"token": token, "username": request.username, "message": "Login successful"}
+    token = create_token(body.username)
+    logger.info(f"User logged in: {body.username}")
+    return {"token": token, "username": body.username, "message": "Login successful"}
 
 
+# ========================================
+# Routes - Documents
+# ========================================
 @app.post("/upload-documents")
 @limiter.limit("10/minute")
 async def upload_documents(
@@ -131,8 +172,11 @@ async def upload_documents(
     results = []
     
     for file in files:
+        # Sanitize filename
+        safe_filename = sanitize_filename(file.filename)
+        
         # Check file extension
-        filename_lower = file.filename.lower()
+        filename_lower = safe_filename.lower()
         file_ext = None
         for ext in allowed_extensions:
             if filename_lower.endswith(ext):
@@ -142,22 +186,33 @@ async def upload_documents(
         if not file_ext:
             raise HTTPException(
                 status_code=400, 
-                detail=f"{file.filename} is not a supported file type. Only PDF and DOCX files are allowed."
+                detail=f"{safe_filename} is not a supported file type. Only PDF and DOCX files are allowed."
             )
         
         content = await file.read()
         
+        # Check file size
+        if len(content) > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{safe_filename} exceeds maximum file size of {MAX_FILE_SIZE_MB}MB"
+            )
+        
         # Extract text based on file type
-        if file_ext == '.pdf':
-            text = extract_text_from_pdf(content)
-        elif file_ext == '.docx':
-            text = extract_text_from_docx(content)
-        else:
+        try:
+            if file_ext == '.pdf':
+                text = extract_text_from_pdf(content)
+            elif file_ext == '.docx':
+                text = extract_text_from_docx(content)
+            else:
+                text = ""
+        except Exception as e:
+            logger.error(f"Error extracting text from {safe_filename}: {e}")
             text = ""
         
         if not text or len(text.strip()) < 50:
             results.append({
-                "filename": file.filename,
+                "filename": safe_filename,
                 "category": "Other",
                 "confidence": 0.70
             })
@@ -172,7 +227,7 @@ async def upload_documents(
         db.add_document(
             doc_id=doc_id,
             username=username,
-            filename=file.filename,
+            filename=safe_filename,
             category=category,
             confidence=confidence,
             timestamp=timestamp,
@@ -181,11 +236,12 @@ async def upload_documents(
         
         results.append({
             "id": doc_id,
-            "filename": file.filename,
+            "filename": safe_filename,
             "category": category,
             "confidence": round(confidence, 3)
         })
     
+    logger.info(f"User {username} uploaded {len(results)} documents")
     return {"message": f"Classified {len(results)} documents", "results": results}
 
 
@@ -224,6 +280,7 @@ async def delete_document(doc_id: str, authorization: str = Header(None)):
     if not success:
         raise HTTPException(status_code=404, detail="Document not found or not authorized")
     
+    logger.info(f"User {username} deleted document {doc_id}")
     return {"message": "Document deleted successfully", "id": doc_id}
 
 
@@ -247,9 +304,9 @@ async def download_zip(authorization: str = Header(None)):
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for doc in documents:
-            # Organize by category folder
-            category = doc['category'].replace(' ', '_')
-            filename = doc['filename']
+            # Sanitize category and filename for ZIP paths
+            category = sanitize_filename(doc['category'].replace(' ', '_'))
+            filename = sanitize_filename(doc['filename'])
             content = doc.get('content', '')
             
             # Create a text file with document info and content
@@ -265,13 +322,20 @@ async def download_zip(authorization: str = Header(None)):
     
     zip_buffer.seek(0)
     
+    # Sanitize username for filename
+    safe_username = sanitize_filename(username)
+    
+    logger.info(f"User {username} downloaded all documents as ZIP")
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename=documents_{username}.zip"}
+        headers={"Content-Disposition": f"attachment; filename=documents_{safe_username}.zip"}
     )
 
 
+# ========================================
+# Routes - AI Summarization
+# ========================================
 @app.post("/summarize", response_model=SummarizeResponse)
 @limiter.limit("20/hour")
 async def summarize_document(
@@ -320,15 +384,38 @@ async def get_llm_status():
     }
 
 
+# ========================================
+# Health Check
+# ========================================
 @app.get("/")
 async def root():
     """Health check endpoint"""
     llm = get_llm_service()
     return {
         "message": "Smart Document Organizer API",
-        "version": "2.0.0",
+        "version": "2.2.0",
         "status": "running",
         "llm_available": llm.is_available
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Detailed health check for monitoring"""
+    try:
+        # Test database connection
+        db.get_user("__health_check__")
+        db_status = "healthy"
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+    
+    llm = get_llm_service()
+    
+    return {
+        "status": "healthy" if db_status == "healthy" else "degraded",
+        "database": db_status,
+        "llm": "available" if llm.is_available else "unavailable",
+        "version": "2.2.0"
     }
 
 
@@ -336,5 +423,5 @@ if __name__ == "__main__":
     import uvicorn
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 8000))
-    print(f"[SERVER] Starting API on {host}:{port}...")
+    logger.info(f"[SERVER] Starting API on {host}:{port}...")
     uvicorn.run(app, host=host, port=port)

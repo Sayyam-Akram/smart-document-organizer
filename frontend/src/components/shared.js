@@ -38,13 +38,14 @@ export const ThemeToggle = () => {
     );
 };
 
-// Logo Component
-export const Logo = ({ size = "large" }) => {
+// Logo Component - Now Clickable!
+export const Logo = ({ size = "large", onClick = null }) => {
     const iconSize = size === "large" ? "w-16 h-16" : "w-10 h-10";
     const textSize = size === "large" ? "text-3xl" : "text-xl";
+    const isClickable = onClick !== null;
 
-    return (
-        <div className="flex items-center gap-3">
+    const content = (
+        <>
             <div className={`${iconSize} relative`}>
                 <div className="absolute inset-0 bg-gradient-to-br from-golden-400 to-golden-600 rounded-xl transform rotate-3"></div>
                 <div className="absolute inset-0 bg-cream-50 dark:bg-dark-300 rounded-xl flex items-center justify-center border-2 border-golden-500">
@@ -60,6 +61,24 @@ export const Logo = ({ size = "large" }) => {
                     <p className="text-sm text-brown-500 dark:text-cream-300">Intelligent Document Classification</p>
                 )}
             </div>
+        </>
+    );
+
+    if (isClickable) {
+        return (
+            <button
+                onClick={onClick}
+                className="flex items-center gap-3 group cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+                title="Go to Upload Page"
+            >
+                {content}
+            </button>
+        );
+    }
+
+    return (
+        <div className="flex items-center gap-3">
+            {content}
         </div>
     );
 };
