@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+venv/
+env/
+.venv/
+__pycache__/
+
+# Build outputs
+frontend/build/
+frontend/dist/
+
+# Environment files (secrets)
+.env
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+
+# Docker files (not needed in image)
+docker-compose.yml
+backend/Dockerfile
+frontend/Dockerfile

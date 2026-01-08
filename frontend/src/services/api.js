@@ -1,5 +1,6 @@
 // API Configuration - Production Ready
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Uses relative URLs when running in combined Docker image (nginx proxies to backend)
+const API_BASE = process.env.REACT_APP_API_URL || '';
 
 // API Service - All backend communication
 const api = {
